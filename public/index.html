@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Feature Management Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --secondary: #ec4899;
+            --bg: #030712;
+            --card-bg: rgba(17, 24, 39, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text: #f3f4f6;
+            --text-dim: #9ca3af;
+            --danger: #ef4444;
+            --success: #10b981;
+            --surface: #111827;
+            --accent: #3b82f6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .layout { display: flex; min-height: 100vh; }
+
+        /* Sidebar Redesign */
+        .sidebar {
+            width: 300px;
+            background: rgba(3, 7, 18, 0.8);
+            backdrop-filter: blur(40px);
+            border-right: 1px solid var(--card-border);
+            padding: 2.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .logo { 
+            margin-bottom: 4rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem;
+            padding-left: 1rem;
+        }
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+        .logo i { font-size: 1.2rem; color: white; }
+        .logo h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .nav-group { margin-bottom: 2rem; }
+        .nav-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.1em; margin-bottom: 1rem; padding-left: 1rem; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+            color: var(--primary);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-item i { font-size: 1.1rem; }
+
+        /* Main Content */
+        .main { flex: 1; margin-left: 300px; padding: 3rem 4rem; max-width: 1400px; margin-right: auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 4rem;
+        }
+
+        header h2 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+        header p { color: var(--text-dim); font-size: 1.1rem; }
+
+        .btn {
+            padding: 0.8rem 1.8rem;
+            border-radius: 14px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-primary:hover { 
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px var(--primary-glow);
+        }
+
+        .btn-outline {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--card-border);
+            color: var(--text);
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.08); border-color: var(--text-dim); }
+
+        /* Grid & Cards Redesign */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 2rem;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(139, 92, 246, 0.3);
+            background: rgba(17, 24, 39, 0.8);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            opacity: 0; transition: 0.3s;
+        }
+        .card:hover::before { opacity: 1; }
+
+        .flag-key { 
+            font-family: 'JetBrains Mono', monospace; 
+            color: var(--primary); 
+            font-weight: 700; 
+            font-size: 1.2rem; 
+            margin-bottom: 0.75rem; 
+            display: block; 
+            letter-spacing: -0.02em;
+        }
+        .flag-desc { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; margin-bottom: 2rem; height: 3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .value-section {
+            background: rgba(3, 7, 18, 0.4);
+            border: 1px solid var(--card-border);
+            padding: 1.25rem;
+            border-radius: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .value-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.05em; }
+        .value-content { font-weight: 700; color: white; font-size: 1rem; }
+
+        /* Toggle Redesign */
+        .toggle-container { display: flex; align-items: center; gap: 0.75rem; }
+        .toggle {
+            width: 52px;
+            height: 28px;
+            background: #374151;
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .toggle.on { background: var(--success); box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+        .toggle.on::after { left: 27px; }
+
+        /* Console Redesign */
+        .console {
+            background: #020617;
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid var(--card-border);
+            font-family: 'JetBrains Mono', monospace;
+            color: #10b981;
+            overflow-x: auto;
+            max-height: 500px;
+            font-size: 0.9rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .input-group { margin-bottom: 2rem; }
+        .input-group label { display: block; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; letter-spacing: 0.02em; }
+        
+        input, select, textarea {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            color: white;
+            outline: none;
+            transition: 0.3s;
+            font-size: 1rem;
+        }
+        input:focus, select:focus, textarea:focus { 
+            border-color: var(--primary); 
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+        }
+
+        /* Modal Redesign */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--surface);
+            padding: 3rem;
+            border-radius: 32px;
+            width: 100%; max-width: 550px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes modalPop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        .toast {
+            position: fixed; bottom: 3rem; right: 3rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 1.25rem 2.5rem;
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast.show { transform: translateY(0); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+                <h1>Nexus</h1>
+            </div>
+            
+            <div class="nav-group">
+                <div class="nav-label">Management</div>
+                <div class="nav-item active" onclick="showPage('flags', this)">
+                    <i class="fa-solid fa-toggle-on"></i> Feature Flags
+                </div>
+                <div class="nav-item" onclick="showPage('test', this)">
+                    <i class="fa-solid fa-terminal"></i> Test Console
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-label">Resources</div>
+                <div class="nav-item" onclick="showPage('guide', this)">
+                    <i class="fa-solid fa-code"></i> SDK Guide
+                </div>
+                <div class="nav-item">
+                    <i class="fa-solid fa-circle-info"></i> API Status
+                </div>
+            </div>
+
+            <div style="margin-top: auto; padding: 1.5rem; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px solid var(--card-border);">
+                <p style="font-size: 0.8rem; color: var(--text-dim);">Environment</p>
+                <p style="font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; display: inline-block;"></span>
+                    Production
+                </p>
+            </div>
+        </aside>
+
+        <main class="main">
+            <!-- Flags Page -->
+            <div id="flagsPage" class="page active">
+                <header>
+                    <div>
+                        <h2>Features</h2>
+                        <p>Configure and monitor your global flags</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('add')">
+                        <i class="fa-solid fa-plus"></i> New Feature
+                    </button>
+                </header>
+                <div id="flagGrid" class="grid">
+                    <!-- Loading state -->
+                    <div style="grid-column: 1/-1; text-align: center; padding: 10rem;">
+                        <i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color: var(--primary); opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Console Page -->
+            <div id="testPage" class="page" style="display: none;">
+                <header>
+                    <h2>Test Console</h2>
+                    <p>Simulate client requests to verify configuration</p>
+                </header>
+                <div style="background: var(--card-bg); padding: 3rem; border-radius: 32px; border: 1px solid var(--card-border);">
+                    <div class="grid" style="grid-template-columns: 1fr 1.5fr;">
+                        <div>
+                            <div class="input-group">
+                                <label>APPLICATION ID</label>
+                                <input type="text" id="testAppId" value="malibandhu-app">
+                            </div>
+                            <div class="input-group">
+                                <label>SECRET KEY</label>
+                                <input type="password" id="testSecret" placeholder="Enter security secret">
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="runTest()">
+                                <i class="fa-solid fa-bolt"></i> Execute Request
+                            </button>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-dim); font-weight: 600;">RESPONSE PAYLOAD</label>
+                            <pre id="testResponse" class="console">Ready for simulation...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guide Page -->
+            <div id="guidePage" class="page" style="display: none;">
+                <header>
+                    <h2>SDK Integration</h2>
+                    <p>Copy and paste snippets to get started</p>
+                </header>
+                <div style="background: var(--card-bg); padding: 3rem; border-radius: 32px; border: 1px solid var(--card-border);">
+                    <h3 style="margin-bottom: 1.5rem; font-size: 1.25rem;">Remote Config Service</h3>
+                    <pre class="console" style="color: #94a3b8; background: #020617; line-height: 1.8;">
+<span style="color: #6366f1;">// 1. Implementation Details</span>
+<span style="color: #ec4899;">const</span> fetchConfig = <span style="color: #ec4899;">async</span> () => {
+  <span style="color: #ec4899;">const</span> appId = <span style="color: #10b981;">"malibandhu-app"</span>;
+  <span style="color: #ec4899;">const</span> timestamp = Date.now().toString();
+  
+  <span style="color: #6366f1;">// Generate SHA256 Signature (HMAC)</span>
+  <span style="color: #ec4899;">const</span> signature = generateSignature(appId, timestamp, SECRET);
+
+  <span style="color: #ec4899;">const</span> response = <span style="color: #ec4899;">await</span> fetch(<span style="color: #10b981;">'/api/config'</span>, {
+    method: <span style="color: #10b981;">'POST'</span>,
+    headers: { <span style="color: #10b981;">'Content-Type'</span>: <span style="color: #10b981;">'application/json'</span> },
+    body: JSON.stringify({ appId, timestamp, signature })
+  });
+
+  <span style="color: #ec4899;">return await</span> response.json();
+};
+                    </pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="flagModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle" style="margin-bottom: 2rem; font-size: 1.75rem;">Create New Flag</h2>
+            <form id="flagForm">
+                <input type="hidden" id="flagId">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 0;">
+                    <div class="input-group">
+                        <label>FLAG KEY</label>
+                        <input type="text" id="flagKey" placeholder="e.g. DARK_MODE" required>
+                    </div>
+                    <div class="input-group">
+                        <label>VALUE TYPE</label>
+                        <select id="flagType" onchange="updateValueInput()">
+                            <option value="boolean">Boolean</option>
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="valueContainer" class="input-group"></div>
+                <div class="input-group">
+                    <label>DESCRIPTION</label>
+                    <textarea id="flagDescription" rows="3" placeholder="What does this feature do?"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg">Success!</span>
+    </div>
+
+    <script>
+        let flags = [];
+
+        function showPage(pageId, el) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(pageId + 'Page').style.display = 'block';
+            el.classList.add('active');
+        }
+
+        async function fetchFlags() {
+            try {
+                const res = await fetch('/api/flags');
+                const result = await res.json();
+                flags = result.data;
+                renderFlags();
+            } catch (err) {
+                document.getElementById('flagGrid').innerHTML = '<p style="text-align: center; padding: 5rem; color: var(--danger);">Failed to load flags. Check backend connection.</p>';
+            }
+        }
+
+        function renderFlags() {
+            const grid = document.getElementById('flagGrid');
+            if (flags.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); padding: 5rem;">No flags defined. Start by creating one.</div>';
+                return;
+            }
+
+            grid.innerHTML = flags.map(flag => {
+                const isBool = typeof flag.value === 'boolean';
+                return `
+                    <div class="card">
+                        <span class="flag-key">${flag.key}</span>
+                        <p class="flag-desc">${flag.description || 'Provide a description for this flag...'}</p>
+                        
+                        <div class="value-section">
+                            <div>
+                                <div class="value-label">Current Value</div>
+                                <div class="value-content">${isBool ? (flag.value ? 'Enabled' : 'Disabled') : flag.value}</div>
+                            </div>
+                            ${isBool ? `
+                                <div class="toggle-container">
+                                    <div class="toggle ${flag.value ? 'on' : ''}" onclick="toggleFlag('${flag._id}', ${flag.value})"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                            <button class="btn btn-outline" style="padding: 0.6rem 1rem;" onclick="openModal('edit', '${flag._id}')">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                            <button class="btn" style="padding: 0.6rem 1rem; background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.1);" onclick="deleteFlag('${flag._id}')">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateValueInput(currentValue = null) {
+            const type = document.getElementById('flagType').value;
+            const container = document.getElementById('valueContainer');
+            if (type === 'boolean') {
+                container.innerHTML = `<label>VALUE</label><select id="flagValue"><option value="true" ${currentValue === true ? 'selected' : ''}>Active / True</option><option value="false" ${currentValue === false ? 'selected' : ''}>Inactive / False</option></select>`;
+            } else {
+                container.innerHTML = `<label>VALUE</label><input type="${type === 'number' ? 'number' : 'text'}" id="flagValue" value="${currentValue !== null ? currentValue : ''}" placeholder="Enter ${type} value" required>`;
+            }
+        }
+
+        function openModal(mode, id = null) {
+            const flag = flags.find(f => f._id === id);
+            document.getElementById('modalTitle').innerText = id ? 'Modify Configuration' : 'Create New Flag';
+            document.getElementById('flagId').value = id || '';
+            document.getElementById('flagKey').value = id ? flag.key : '';
+            document.getElementById('flagKey').disabled = !!id;
+            document.getElementById('flagDescription').value = id ? (flag.description || '') : '';
+            if (id) document.getElementById('flagType').value = typeof flag.value;
+            updateValueInput(id ? flag.value : null);
+            document.getElementById('flagModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('flagModal').style.display = 'none'; }
+
+        async function toggleFlag(id, current) {
+            const res = await fetch('/api/flags/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: !current })
+            });
+            if ((await res.json()).success) {
+                fetchFlags();
+                showToast('State updated successfully');
+            }
+        }
+
+        async function deleteFlag(id) {
+            if (confirm('Permanently remove this feature flag? This action cannot be undone.')) {
+                await fetch('/api/flags/' + id, { method: 'DELETE' });
+                fetchFlags();
+                showToast('Flag deleted');
+            }
+        }
+
+        document.getElementById('flagForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('flagId').value;
+            const type = document.getElementById('flagType').value;
+            let value = document.getElementById('flagValue').value;
+            if (type === 'boolean') value = value === 'true';
+            if (type === 'number') value = Number(value);
+
+            const payload = {
+                key: document.getElementById('flagKey').value,
+                value,
+                description: document.getElementById('flagDescription').value
+            };
+
+            const res = await fetch(id ? '/api/flags/' + id : '/api/flags', {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                closeModal();
+                fetchFlags();
+                showToast(id ? 'Configuration updated' : 'Feature flag created');
+            } else {
+                alert('Error: ' + (data.message || 'Unknown error'));
+            }
+        };
+
+        async function runTest() {
+            const appId = document.getElementById('testAppId').value;
+            const secret = document.getElementById('testSecret').value;
+            const timestamp = Date.now().toString();
+            
+            if (!secret) {
+                alert('Security secret required for simulation');
+                return;
+            }
+
+            const signature = CryptoJS.SHA256(appId + timestamp + secret).toString();
+
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appId, timestamp, signature })
+            });
+            const data = await res.json();
+            document.getElementById('testResponse').innerText = JSON.stringify(data, null, 2);
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        fetchFlags();
+    </script>
+</body>
+</html>
