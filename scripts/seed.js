@@ -55,6 +55,8 @@ const defaultFlags = [
   }
 ];
 
+const Environment = require('../models/Environment');
+
 async function seed() {
   try {
     if (!process.env.MONGODB_URI) {
@@ -64,18 +66,64 @@ async function seed() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to DB for seeding defaults...');
     
+    // Drop the old index if it exists
+    try {
+      await FeatureFlag.collection.dropIndex('key_1');
+      console.log('[DROPPED] Old unique index on key');
+    } catch (err) {
+      // Index might not exist, ignore
+    }
+    
+    // 1. Create Environments
+    const envsToCreate = [
+      { name: 'Production', key: 'production', description: 'Main production environment' },
+      { name: 'Staging', key: 'staging', description: 'Pre-production testing environment' },
+      { name: 'Development', key: 'development', description: 'Local and feature development environment' }
+    ];
+
+    const createdEnvs = [];
+
+    for (const envData of envsToCreate) {
+      let env = await Environment.findOne({ key: envData.key });
+      if (!env) {
+        env = await Environment.create(envData);
+        console.log(`[CREATED] ${envData.name} Environment`);
+      } else {
+        console.log(`[EXISTS] ${envData.name} Environment`);
+      }
+      createdEnvs.push(env);
+    }
+
     let addedCount = 0;
     let skippedCount = 0;
 
-    for (const flagData of defaultFlags) {
-      const exists = await FeatureFlag.findOne({ key: flagData.key });
-      if (!exists) {
-        await FeatureFlag.create(flagData);
-        console.log(`[CREATED] ${flagData.key}`);
-        addedCount++;
-      } else {
-        console.log(`[SKIPPED] ${flagData.key} (already exists)`);
-        skippedCount++;
+    // 2. Seed flags for each environment
+    for (const env of createdEnvs) {
+      console.log(`\nSeeding flags for ${env.name}...`);
+      for (const flagData of defaultFlags) {
+        const exists = await FeatureFlag.findOne({ 
+          key: flagData.key,
+          environment: env._id
+        });
+
+        if (!exists) {
+          // Add some overrides for development environment to make it obvious
+          let value = flagData.value;
+          if (env.key === 'development' && flagData.key === 'DEBUG_MODE') {
+            value = true;
+          }
+
+          await FeatureFlag.create({
+            ...flagData,
+            value,
+            environment: env._id
+          });
+          console.log(`[CREATED] ${flagData.key} in ${env.name}`);
+          addedCount++;
+        } else {
+          console.log(`[SKIPPED] ${flagData.key} (already exists in ${env.name})`);
+          skippedCount++;
+        }
       }
     }
 

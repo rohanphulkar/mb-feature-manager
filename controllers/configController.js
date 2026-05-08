@@ -1,10 +1,12 @@
 const FeatureFlag = require('../models/FeatureFlag');
 const verifySignature = require('../utils/verifySignature');
 
+const Environment = require('../models/Environment');
+
 // Main config endpoint
 exports.getConfig = async (req, res) => {
   try {
-    const { appId, timestamp, signature } = req.body;
+    const { appId, timestamp, signature, environment: environmentKey } = req.body;
 
     // 1. Verify Signature
     const isValid = verifySignature(appId, timestamp, signature);
@@ -16,18 +18,35 @@ exports.getConfig = async (req, res) => {
       });
     }
 
-    // 2. Fetch all flags
-    const flagsList = await FeatureFlag.find();
+    if (!environmentKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Environment is required'
+      });
+    }
 
-    // 3. Convert to key-value object
+    // 2. Find environment
+    const env = await Environment.findOne({ key: environmentKey.toLowerCase() });
+    if (!env) {
+      return res.status(404).json({
+        success: false,
+        error: 'Environment not found'
+      });
+    }
+
+    // 3. Fetch all flags for this environment
+    const flagsList = await FeatureFlag.find({ environment: env._id });
+
+    // 4. Convert to key-value object
     const flags = {};
     flagsList.forEach(flag => {
       flags[flag.key] = flag.value;
     });
 
-    // 4. Return config
+    // 5. Return config
     res.json({
       success: true,
+      environment: env.name,
       cacheDurationHours: 12,
       flags
     });

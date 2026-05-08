@@ -7,6 +7,7 @@ const path = require('path');
 
 const configRoutes = require('../routes/configRoutes');
 const flagRoutes = require('../routes/flagRoutes');
+const environmentRoutes = require('../routes/environmentRoutes');
 
 const app = express();
 
@@ -54,6 +55,11 @@ app.use('/api/flags', async (req, res, next) => {
   await connectDB();
   next();
 }, flagRoutes);
+
+app.use('/api/environments', async (req, res, next) => {
+  await connectDB();
+  next();
+}, environmentRoutes);
 
 // Root route - serve UI
 app.get('/', (req, res) => {

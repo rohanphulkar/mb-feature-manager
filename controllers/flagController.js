@@ -3,7 +3,9 @@ const FeatureFlag = require('../models/FeatureFlag');
 // Get all flags
 exports.getAllFlags = async (req, res) => {
   try {
-    const flags = await FeatureFlag.find().sort({ key: 1 });
+    const { environmentId } = req.query;
+    const filter = environmentId ? { environment: environmentId } : {};
+    const flags = await FeatureFlag.find(filter).populate('environment').sort({ key: 1 });
     res.json({ success: true, data: flags });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -13,19 +15,19 @@ exports.getAllFlags = async (req, res) => {
 // Create a new flag
 exports.createFlag = async (req, res) => {
   try {
-    const { key, value, description } = req.body;
+    const { key, value, description, environmentId } = req.body;
     
-    if (!key || value === undefined) {
-      return res.status(400).json({ success: false, error: 'Key and value are required' });
+    if (!key || value === undefined || !environmentId) {
+      return res.status(400).json({ success: false, error: 'Key, value, and environmentId are required' });
     }
 
-    const flag = new FeatureFlag({ key, value, description });
+    const flag = new FeatureFlag({ key, value, description, environment: environmentId });
     await flag.save();
     
     res.status(201).json({ success: true, data: flag });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ success: false, error: 'Flag key already exists' });
+      return res.status(400).json({ success: false, error: 'Flag key already exists in this environment' });
     }
     res.status(500).json({ success: false, error: error.message });
   }
